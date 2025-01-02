@@ -13,9 +13,12 @@ else
 	BUILD_DIR = build/release
 endif
 
-.PHONY: all clean
+.PHONY: all clean test
 
 all: $(BIN)
+
+test: $(BIN)
+	./test.sh $(BIN)
 
 $(BIN): $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) -o $@

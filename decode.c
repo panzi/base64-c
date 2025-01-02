@@ -178,7 +178,12 @@ ssize_t base64_decode_finish(struct Base64Decoder *decoder, uint8_t output[], si
     }
 
     if (!(decoder->flags & BASE64_ALLOW_TRUNCATE)) {
-        fprintf(stderr, "missing padding!\n");
+        fprintf(stderr, "missing padding! (buf_size=%zu, buf={0x%02x, 0x%02x, 0x%02x, 0x%02x})\n",
+            buf_size,
+            (unsigned int)decoder->buf[0],
+            (unsigned int)decoder->buf[1],
+            (unsigned int)decoder->buf[2],
+            (unsigned int)decoder->buf[3]);
         return -1;
     }
 

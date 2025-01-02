@@ -24,8 +24,8 @@ static inline void base64_encode_quad(const uint8_t input[3], char output[4], co
     uint8_t b3 = input[2];
 
     output[0] = table[b1 >> 2];
-    output[1] = table[(uint8_t)(b1 << 6) | (b2 >> 4)];
-    output[2] = table[(uint8_t)(b2 << 4) | (b3 >> 6)];
+    output[1] = table[((b1 << 4) & 0x3F) | (b2 >> 4)];
+    output[2] = table[((b2 << 2) & 0x3F) | (b3 >> 6)];
     output[3] = table[b3 & 0x3F];
 }
 
@@ -113,16 +113,16 @@ ssize_t base64_encode_finish(struct Base64Encoder *encoder, char output[], size_
 
         output[0] = table[b1 >> 2];
         if (buf_size > 1) {
-            output[1] = table[(uint8_t)(b1 << 6) | (b2 >> 4)];
+            output[1] = table[((b1 << 4) & 0x3F) | (b2 >> 4)];
 
             if (buf_size > 2) {
-                output[2] = table[(uint8_t)(b2 << 4) | (b3 >> 6)];
+                output[2] = table[((b2 << 2) & 0x3F) | (b3 >> 6)];
                 output[3] = table[b3 & 0x3F];
             } else {
-                output[2] = table[(uint8_t)(b2 << 4)];
+                output[2] = table[(b2 << 2) & 0x3F];
             }
         } else {
-            output[1] = table[(uint8_t)(b1 << 6)];
+            output[1] = table[(b1 << 4) & 0x3F];
         }
 
         encoder->buf_size = 0;
@@ -137,17 +137,17 @@ ssize_t base64_encode_finish(struct Base64Encoder *encoder, char output[], size_
 
     output[0] = table[b1 >> 2];
     if (buf_size > 1) {
-        output[1] = table[(uint8_t)(b1 << 6) | (b2 >> 4)];
+        output[1] = table[((b1 << 4) & 0x3F) | (b2 >> 4)];
 
         if (buf_size > 2) {
-            output[2] = table[(uint8_t)(b2 << 4) | (b3 >> 6)];
+            output[2] = table[((b2 << 2) & 0x3F) | (b3 >> 6)];
             output[3] = table[b3 & 0x3F];
         } else {
-            output[2] = table[(uint8_t)(b2 << 4)];
+            output[2] = table[(b2 << 2) & 0x3F];
             output[3] = '=';
         }
     } else {
-        output[1] = table[(uint8_t)(b1 << 6)];
+        output[1] = table[(b1 << 4) & 0x3F];
         output[2] = '=';
         output[3] = '=';
     }
