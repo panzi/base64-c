@@ -7,23 +7,42 @@
 
 #include "base64.h"
 
-void usage(FILE *out, int argc, char *argv[]) {
-    fprintf(out, "Usage: %s [-d] [--] [file...]\n", argc > 0 ? argv[0] : "base64");
+static void usage(FILE *out, int argc, char *argv[]) {
+    fprintf(out, "Usage: %s [OPTIONS] [--] [file...]\n", argc > 0 ? argv[0] : "base64");
+}
+
+static void help(int argc, char *argv[]) {
+    usage(stdout, argc, argv);
+    printf("\n");
+    printf("OPTIONS:\n");
+    printf("\n");
+    printf("    -h          Print this help message.\n");
+    printf("    -d          Decode Base 64.\n");
+    printf("    -t          Allow truncated padding when decoding and don't emit padding when encoding.\n");
+    printf("    -u          Use URL-safe Base 64 (use '-' and '_' instead of '+' and '/').\n");
 }
 
 int main(int argc, char *argv[]) {
     bool encode = true;
-    int flags = 0;
+    unsigned int flags = 0;
 
     int opt = -1;
-    while ((opt = getopt(argc, argv, "dt")) != -1) {
+    while ((opt = getopt(argc, argv, "hdtu")) != -1) {
         switch (opt) {
+            case 'h':
+                help(argc, argv);
+                break;
+
             case 'd':
                 encode = false;
                 break;
 
             case 't':
                 flags |= BASE64_ALLOW_TRUNCATE;
+                break;
+
+            case 'u':
+                flags |= BASE64_DIALECT_URLSAFE;
                 break;
 
             default:

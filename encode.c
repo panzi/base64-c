@@ -12,15 +12,21 @@ static const char *BASE64_ENCODE_TABLE =
     "0123456789"
     "+/";
 
-static inline void base64_encode_quad(const uint8_t input[3], char output[4]) {
+static const char *URLSAFE_BASE64_ENCODE_TABLE =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "0123456789"
+    "-_";
+
+static inline void base64_encode_quad(const uint8_t input[3], char output[4], const char *table) {
     uint8_t b1 = input[0];
     uint8_t b2 = input[1];
     uint8_t b3 = input[2];
 
-    output[0] = BASE64_ENCODE_TABLE[b1 >> 2];
-    output[1] = BASE64_ENCODE_TABLE[(uint8_t)(b1 << 6) | (b2 >> 4)];
-    output[2] = BASE64_ENCODE_TABLE[(uint8_t)(b2 << 4) | (b3 >> 6)];
-    output[3] = BASE64_ENCODE_TABLE[b3 & 0x3F];
+    output[0] = table[b1 >> 2];
+    output[1] = table[(uint8_t)(b1 << 6) | (b2 >> 4)];
+    output[2] = table[(uint8_t)(b2 << 4) | (b3 >> 6)];
+    output[3] = table[b3 & 0x3F];
 }
 
 ssize_t base64_encode(struct Base64Encoder *encoder, const uint8_t input[], size_t input_len, char output[], size_t output_len) {
@@ -36,6 +42,7 @@ ssize_t base64_encode(struct Base64Encoder *encoder, const uint8_t input[], size
     ssize_t output_index = 0;
 
     uint8_t *buf = encoder->buf;
+    const char *table = encoder->flags & BASE64_DIALECT_URLSAFE ? URLSAFE_BASE64_ENCODE_TABLE : BASE64_ENCODE_TABLE;
 
     if (buf_size > 0) {
         size_t rem = 3 - buf_size;
@@ -52,7 +59,7 @@ ssize_t base64_encode(struct Base64Encoder *encoder, const uint8_t input[], size
             return -1;
         }
 
-        base64_encode_quad(buf, output);
+        base64_encode_quad(buf, output, table);
         output_index += 4;
         input_index = read_count;
     }
@@ -65,7 +72,7 @@ ssize_t base64_encode(struct Base64Encoder *encoder, const uint8_t input[], size
     }
 
     for (; input_index < trunc_input_len; input_index += 3) {
-        base64_encode_quad(input + input_index, output + output_index);
+        base64_encode_quad(input + input_index, output + output_index, table);
         output_index += 4;
     }
 
@@ -93,7 +100,10 @@ ssize_t base64_encode_finish(struct Base64Encoder *encoder, char output[], size_
     uint8_t b2 = buf[1];
     uint8_t b3 = buf[2];
 
-    if (encoder->flags & BASE64_SKIP_PADDING) {
+    unsigned int flags = encoder->flags;
+    const char *table = flags & BASE64_DIALECT_URLSAFE ? URLSAFE_BASE64_ENCODE_TABLE : BASE64_ENCODE_TABLE;
+
+    if (flags & BASE64_SKIP_PADDING) {
         size_t b64_size = (buf_size * 4 + 2) / 3;
 
         if (b64_size > output_len) {
@@ -101,18 +111,18 @@ ssize_t base64_encode_finish(struct Base64Encoder *encoder, char output[], size_
             return -1;
         }
 
-        output[0] = BASE64_ENCODE_TABLE[b1 >> 2];
+        output[0] = table[b1 >> 2];
         if (buf_size > 1) {
-            output[1] = BASE64_ENCODE_TABLE[(uint8_t)(b1 << 6) | (b2 >> 4)];
+            output[1] = table[(uint8_t)(b1 << 6) | (b2 >> 4)];
 
             if (buf_size > 2) {
-                output[2] = BASE64_ENCODE_TABLE[(uint8_t)(b2 << 4) | (b3 >> 6)];
-                output[3] = BASE64_ENCODE_TABLE[b3 & 0x3F];
+                output[2] = table[(uint8_t)(b2 << 4) | (b3 >> 6)];
+                output[3] = table[b3 & 0x3F];
             } else {
-                output[2] = BASE64_ENCODE_TABLE[(uint8_t)(b2 << 4)];
+                output[2] = table[(uint8_t)(b2 << 4)];
             }
         } else {
-            output[1] = BASE64_ENCODE_TABLE[(uint8_t)(b1 << 6)];
+            output[1] = table[(uint8_t)(b1 << 6)];
         }
 
         encoder->buf_size = 0;
@@ -125,19 +135,19 @@ ssize_t base64_encode_finish(struct Base64Encoder *encoder, char output[], size_
         return -1;
     }
 
-    output[0] = BASE64_ENCODE_TABLE[b1 >> 2];
+    output[0] = table[b1 >> 2];
     if (buf_size > 1) {
-        output[1] = BASE64_ENCODE_TABLE[(uint8_t)(b1 << 6) | (b2 >> 4)];
+        output[1] = table[(uint8_t)(b1 << 6) | (b2 >> 4)];
 
         if (buf_size > 2) {
-            output[2] = BASE64_ENCODE_TABLE[(uint8_t)(b2 << 4) | (b3 >> 6)];
-            output[3] = BASE64_ENCODE_TABLE[b3 & 0x3F];
+            output[2] = table[(uint8_t)(b2 << 4) | (b3 >> 6)];
+            output[3] = table[b3 & 0x3F];
         } else {
-            output[2] = BASE64_ENCODE_TABLE[(uint8_t)(b2 << 4)];
+            output[2] = table[(uint8_t)(b2 << 4)];
             output[3] = '=';
         }
     } else {
-        output[1] = BASE64_ENCODE_TABLE[(uint8_t)(b1 << 6)];
+        output[1] = table[(uint8_t)(b1 << 6)];
         output[2] = '=';
         output[3] = '=';
     }
@@ -147,7 +157,7 @@ ssize_t base64_encode_finish(struct Base64Encoder *encoder, char output[], size_
     return 4;
 }
 
-int base64_encode_stream(FILE *input, FILE *output, int flags) {
+int base64_encode_stream(FILE *input, FILE *output, unsigned int flags) {
     struct Base64Encoder encoder = BASE64_ENCODER_INIT(flags);
     uint8_t inbuf[BUFSIZ];
     char outbuf[BUFSIZ * 4 / 3];

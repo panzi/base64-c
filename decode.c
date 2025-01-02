@@ -38,27 +38,46 @@ static const uint16_t BASE64_DECODE_TABLE[256] = {
     [ 'Z' ] = 25, [ 'z' ] = 51,
 };
 
-#define BASE64_DECODE_CHAR(C) (BASE64_DECODE_TABLE[(C)])
-#define BASE64_DECODE_CHAR_ALT(C) ( \
-    (C) >= 'A' && (C) <= 'Z' ? (uint_fast16_t)(C) - 'A' : \
-    (C) >= 'a' && (C) <= 'z' ? 26 + (uint_fast16_t)(C) - 'a' : \
-    (C) >= '0' && (C) <= '9' ? 52 + (uint_fast16_t)(C) - '0' : \
-    (C) == '+' ? 62 : \
-    (C) == '/' ? 63 : \
-    (C) == '=' ? BASE64_CHAR_PADDING : \
-    BASE64_CHAR_ERROR \
-)
+static const uint16_t URLSAFE_BASE64_DECODE_TABLE[256] = {
+    [ 0 ... 255 ] = BASE64_CHAR_ERROR,
+    [ 'A' ] =  0, [ 'a' ] = 26, [ '0' ] = 52,
+    [ 'B' ] =  1, [ 'b' ] = 27, [ '1' ] = 53,
+    [ 'C' ] =  2, [ 'c' ] = 28, [ '2' ] = 54,
+    [ 'D' ] =  3, [ 'd' ] = 29, [ '3' ] = 55,
+    [ 'E' ] =  4, [ 'e' ] = 30, [ '4' ] = 56,
+    [ 'F' ] =  5, [ 'f' ] = 31, [ '5' ] = 57,
+    [ 'G' ] =  6, [ 'g' ] = 32, [ '6' ] = 58,
+    [ 'H' ] =  7, [ 'h' ] = 33, [ '7' ] = 59,
+    [ 'I' ] =  8, [ 'i' ] = 34, [ '8' ] = 60,
+    [ 'J' ] =  9, [ 'j' ] = 35, [ '9' ] = 61,
+    [ 'K' ] = 10, [ 'k' ] = 36, [ '-' ] = 62,
+    [ 'L' ] = 11, [ 'l' ] = 37, [ '_' ] = 63,
+    [ 'M' ] = 12, [ 'm' ] = 38, [ '=' ] = BASE64_CHAR_PADDING,
+    [ 'N' ] = 13, [ 'n' ] = 39,
+    [ 'O' ] = 14, [ 'o' ] = 40,
+    [ 'P' ] = 15, [ 'p' ] = 41,
+    [ 'Q' ] = 16, [ 'q' ] = 42,
+    [ 'R' ] = 17, [ 'r' ] = 43,
+    [ 'S' ] = 18, [ 's' ] = 44,
+    [ 'T' ] = 19, [ 't' ] = 45,
+    [ 'U' ] = 20, [ 'u' ] = 46,
+    [ 'V' ] = 21, [ 'v' ] = 47,
+    [ 'W' ] = 22, [ 'w' ] = 48,
+    [ 'X' ] = 23, [ 'x' ] = 49,
+    [ 'Y' ] = 24, [ 'y' ] = 50,
+    [ 'Z' ] = 25, [ 'z' ] = 51,
+};
 
-static inline int base64_decode_quad(const char input[4], uint8_t output[3]) {
+static inline int base64_decode_quad(const char input[4], uint8_t output[3], const uint16_t *table) {
     uint_fast16_t c1 = input[0];
     uint_fast16_t c2 = input[1];
     uint_fast16_t c3 = input[2];
     uint_fast16_t c4 = input[3];
 
-    c1 = BASE64_DECODE_CHAR(c1);
-    c2 = BASE64_DECODE_CHAR(c2);
-    c3 = BASE64_DECODE_CHAR(c3);
-    c4 = BASE64_DECODE_CHAR(c4);
+    c1 = table[c1];
+    c2 = table[c2];
+    c3 = table[c3];
+    c4 = table[c4];
 
     if (((c1 | c2 | c3 | c4) & BASE64_CHAR_ERROR) | ((c1 | c2) & BASE64_CHAR_PADDING)) {
         fprintf(stderr, "illegal input: \"%c%c%c%c\"\n", input[0], input[1], input[2], input[3]);
@@ -100,6 +119,7 @@ ssize_t base64_decode(struct Base64Decoder *decoder, const char *input, size_t i
     ssize_t output_index = 0;
 
     char *buf = decoder->buf;
+    const uint16_t *table = decoder->flags & BASE64_DIALECT_URLSAFE ? URLSAFE_BASE64_DECODE_TABLE : BASE64_DECODE_TABLE;
 
     if (buf_size > 0) {
         size_t rem = 4 - buf_size;
@@ -116,7 +136,7 @@ ssize_t base64_decode(struct Base64Decoder *decoder, const char *input, size_t i
             return -1;
         }
 
-        int out_count = base64_decode_quad(buf, output);
+        int out_count = base64_decode_quad(buf, output, table);
         if (out_count < 0) {
             return -1;
         }
@@ -132,7 +152,7 @@ ssize_t base64_decode(struct Base64Decoder *decoder, const char *input, size_t i
     }
 
     for (; input_index < trunc_input_len; input_index += 4) {
-        int out_count = base64_decode_quad(input + input_index, output + output_index);
+        int out_count = base64_decode_quad(input + input_index, output + output_index, table);
         if (out_count < 0) {
             return -1;
         }
@@ -170,7 +190,8 @@ ssize_t base64_decode_finish(struct Base64Decoder *decoder, uint8_t output[], si
         return -1;
     }
 
-    int out_count = base64_decode_quad(buf, output);
+    const uint16_t *table = decoder->flags & BASE64_DIALECT_URLSAFE ? URLSAFE_BASE64_DECODE_TABLE : BASE64_DECODE_TABLE;
+    int out_count = base64_decode_quad(buf, output, table);
 
     if (out_count >= 0) {
         decoder->buf_size = 0;
@@ -179,7 +200,7 @@ ssize_t base64_decode_finish(struct Base64Decoder *decoder, uint8_t output[], si
     return out_count;
 }
 
-int base64_decode_stream(FILE *input, FILE *output, int flags) {
+int base64_decode_stream(FILE *input, FILE *output, unsigned int flags) {
     struct Base64Decoder decoder = BASE64_DECODER_INIT(flags);
     char inbuf[BUFSIZ];
     uint8_t outbuf[BUFSIZ];
