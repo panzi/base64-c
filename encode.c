@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <limits.h>
+#include <assert.h>
 
 static const char *BASE64_ENCODE_TABLE =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -16,25 +18,137 @@ static inline void base64_encode_quad(const uint8_t input[3], char output[4]) {
     uint8_t b3 = input[2];
 
     output[0] = BASE64_ENCODE_TABLE[b1 >> 2];
-    output[2] = BASE64_ENCODE_TABLE[(uint8_t)(b1 << 6) | (b2 >> 4)];
-    output[3] = BASE64_ENCODE_TABLE[(uint8_t)(b2 << 4) | (b3 >> 6)];
-    output[4] = BASE64_ENCODE_TABLE[b3 & 0x3F];
+    output[1] = BASE64_ENCODE_TABLE[(uint8_t)(b1 << 6) | (b2 >> 4)];
+    output[2] = BASE64_ENCODE_TABLE[(uint8_t)(b2 << 4) | (b3 >> 6)];
+    output[3] = BASE64_ENCODE_TABLE[b3 & 0x3F];
 }
 
 ssize_t base64_encode(struct Base64Encoder *encoder, const uint8_t input[], size_t input_len, char output[], size_t output_len) {
-    (void)base64_encode_quad;
-    fprintf(stderr, "base64_encode(): not yet implemented!\n");
-    exit(1);
+    size_t buf_size = encoder->buf_size;
+    assert(buf_size <= 3);
+
+    if (input_len > (((size_t)SSIZE_MAX - 2) / 4) - buf_size || ((input_len + buf_size) * 4 + 2) / 3 > (size_t)SSIZE_MAX) {
+        fprintf(stderr, "input_len too big: %zu > %zu\n", input_len, (size_t)SSIZE_MAX);
+        return -1;
+    }
+
+    size_t input_index = 0;
+    ssize_t output_index = 0;
+
+    uint8_t *buf = encoder->buf;
+
+    if (buf_size > 0) {
+        size_t rem = 3 - buf_size;
+        size_t read_count = rem < input_len ? rem : input_len;
+        memcpy(buf + buf_size, input, read_count);
+        buf_size += read_count;
+        if (buf_size != 3) {
+            encoder->buf_size = buf_size;
+            return 0;
+        }
+
+        if (output_len < 4) {
+            fprintf(stderr, "output buffer too small\n");
+            return -1;
+        }
+
+        base64_encode_quad(buf, output);
+        output_index += 4;
+        input_index = read_count;
+    }
+
+    size_t trunc_input_len = input_len - (input_len - input_index) % 3;
+
+    if (trunc_input_len / 3 > (output_len - output_index) / 4) {
+        fprintf(stderr, "output buffer too small\n");
+        return -1;
+    }
+
+    for (; input_index < trunc_input_len; input_index += 3) {
+        base64_encode_quad(input + input_index, output + output_index);
+        output_index += 4;
+    }
+
+    if (trunc_input_len < input_len) {
+        size_t rem = input_len - trunc_input_len;
+        memcpy(buf, input + trunc_input_len, rem);
+        encoder->buf_size = rem;
+    } else {
+        encoder->buf_size = 0;
+    }
+
+    return output_index;
 }
 
-ssize_t base64_encode_finish(struct Base64Encoder *encoder, char output[], size_t output_len, int flags) {
-    (void)base64_encode_quad;
-    fprintf(stderr, "base64_encode_finish(): not yet implemented!\n");
-    exit(1);
+ssize_t base64_encode_finish(struct Base64Encoder *encoder, char output[], size_t output_len) {
+    size_t buf_size = encoder->buf_size;
+
+    if (buf_size == 0) {
+        return 0;
+    }
+
+    const uint8_t *buf = encoder->buf;
+
+    uint8_t b1 = buf[0];
+    uint8_t b2 = buf[1];
+    uint8_t b3 = buf[2];
+
+    if (encoder->flags & BASE64_SKIP_PADDING) {
+        size_t b64_size = (buf_size * 4 + 2) / 3;
+
+        if (b64_size > output_len) {
+            fprintf(stderr, "output buffer too small\n");
+            return -1;
+        }
+
+        output[0] = BASE64_ENCODE_TABLE[b1 >> 2];
+        if (buf_size > 1) {
+            output[1] = BASE64_ENCODE_TABLE[(uint8_t)(b1 << 6) | (b2 >> 4)];
+
+            if (buf_size > 2) {
+                output[2] = BASE64_ENCODE_TABLE[(uint8_t)(b2 << 4) | (b3 >> 6)];
+                output[3] = BASE64_ENCODE_TABLE[b3 & 0x3F];
+            } else {
+                output[2] = BASE64_ENCODE_TABLE[(uint8_t)(b2 << 4)];
+            }
+        } else {
+            output[1] = BASE64_ENCODE_TABLE[(uint8_t)(b1 << 6)];
+        }
+
+        encoder->buf_size = 0;
+
+        return b64_size;
+    }
+
+    if (4 > output_len) {
+        fprintf(stderr, "output buffer too small\n");
+        return -1;
+    }
+
+    output[0] = BASE64_ENCODE_TABLE[b1 >> 2];
+    if (buf_size > 1) {
+        output[1] = BASE64_ENCODE_TABLE[(uint8_t)(b1 << 6) | (b2 >> 4)];
+
+        if (buf_size > 2) {
+            output[2] = BASE64_ENCODE_TABLE[(uint8_t)(b2 << 4) | (b3 >> 6)];
+            output[3] = BASE64_ENCODE_TABLE[b3 & 0x3F];
+        } else {
+            output[2] = BASE64_ENCODE_TABLE[(uint8_t)(b2 << 4)];
+            output[3] = '=';
+        }
+    } else {
+        output[1] = BASE64_ENCODE_TABLE[(uint8_t)(b1 << 6)];
+        output[2] = '=';
+        output[3] = '=';
+    }
+
+    encoder->buf_size = 0;
+
+    return 4;
 }
 
 int base64_encode_stream(FILE *input, FILE *output, int flags) {
-    struct Base64Encoder encoder = BASE64_ENCODER_INIT;
+    struct Base64Encoder encoder = BASE64_ENCODER_INIT(flags);
     uint8_t inbuf[BUFSIZ];
     char outbuf[BUFSIZ * 4 / 3];
 
@@ -65,7 +179,7 @@ int base64_encode_stream(FILE *input, FILE *output, int flags) {
         }
     }
 
-    ssize_t out_count = base64_encode_finish(&encoder, outbuf, sizeof(outbuf), flags);
+    ssize_t out_count = base64_encode_finish(&encoder, outbuf, sizeof(outbuf));
 
     if (out_count < 0) {
         fprintf(stderr, "base64_encode_finish(): error encoding base64\n");

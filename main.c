@@ -13,12 +13,17 @@ void usage(FILE *out, int argc, char *argv[]) {
 
 int main(int argc, char *argv[]) {
     bool encode = true;
+    int flags = 0;
 
     int opt = -1;
-    while ((opt = getopt(argc, argv, "d")) != -1) {
+    while ((opt = getopt(argc, argv, "dt")) != -1) {
         switch (opt) {
             case 'd':
                 encode = false;
+                break;
+
+            case 't':
+                flags |= BASE64_ALLOW_TRUNCATE;
                 break;
 
             default:
@@ -29,7 +34,7 @@ int main(int argc, char *argv[]) {
 
     if (encode) {
         if (optind >= argc) {
-            int errnum = base64_encode_stream(stdin, stdout, 0);
+            int errnum = base64_encode_stream(stdin, stdout, flags);
             if (errnum != 0) {
                 fprintf(stderr, "Error encoding base64 from <stdin>\n");
             }
@@ -40,7 +45,7 @@ int main(int argc, char *argv[]) {
                 if (fp == NULL) {
                     perror(filename);
                 } else {
-                    int errnum = base64_encode_stream(fp, stdout, 0);
+                    int errnum = base64_encode_stream(fp, stdout, flags);
                     if (errnum != 0) {
                         fprintf(stderr, "Error encoding base64 from: %s\n", filename);
                     }

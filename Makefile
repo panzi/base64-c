@@ -9,7 +9,7 @@ ifeq ($(DEBUG),ON)
 	CFLAGS += -g
 	BUILD_DIR = build/debug
 else
-	CFLAGS += -O2
+	CFLAGS += -O2 -DNDEBUG
 	BUILD_DIR = build/release
 endif
 
