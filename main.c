@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
         switch (opt) {
             case 'h':
                 help(argc, argv);
-                break;
+                return 0;
 
             case 'd':
                 encode = false;
