@@ -64,6 +64,9 @@ ssize_t base64_encode_chunk(struct Base64Encoder *encoder, const uint8_t input[]
         buf_size += read_count;
         if (buf_size != 3) {
             encoder->buf_size = buf_size;
+            if (output_len > 0) {
+                output[0] = '\0';
+            }
             return 0;
         }
 
@@ -103,6 +106,10 @@ ssize_t base64_encode_chunk(struct Base64Encoder *encoder, const uint8_t input[]
         encoder->buf_size = 0;
     }
 
+    if (output_len > output_index) {
+        output[output_index] = '\0';
+    }
+
     return output_index;
 }
 
@@ -110,6 +117,9 @@ ssize_t base64_encode_finish(struct Base64Encoder *encoder, char output[], size_
     size_t buf_size = encoder->buf_size;
 
     if (buf_size == 0) {
+        if (output_len > 0) {
+            output[0] = '\0';
+        }
         return 0;
     }
 
@@ -146,6 +156,10 @@ ssize_t base64_encode_finish(struct Base64Encoder *encoder, char output[], size_
 
         encoder->buf_size = 0;
 
+        if (b64_size < output_len) {
+            output[b64_size] = '\0';
+        }
+
         return b64_size;
     }
 
@@ -171,6 +185,10 @@ ssize_t base64_encode_finish(struct Base64Encoder *encoder, char output[], size_
         output[3] = '=';
     }
 
+    if (4 < output_len) {
+        output[4] = '\0';
+    }
+
     encoder->buf_size = 0;
 
     return 4;
@@ -178,8 +196,8 @@ ssize_t base64_encode_finish(struct Base64Encoder *encoder, char output[], size_
 
 int base64_encode_stream(FILE *input, FILE *output, unsigned int flags) {
     struct Base64Encoder encoder = BASE64_ENCODER_INIT(flags);
-    uint8_t inbuf[BUFSIZ];
-    char outbuf[(BUFSIZ * 4 + 2) / 3 + 4];
+    uint8_t inbuf[16 * 1024];
+    char outbuf[(16 * 1024 * 4 + 2) / 3 + 4 + 1];
 
     for (;;) {
         size_t in_count = fread(inbuf, 1, sizeof(inbuf), input);
@@ -195,7 +213,7 @@ int base64_encode_stream(FILE *input, FILE *output, unsigned int flags) {
         ssize_t out_count = base64_encode_chunk(&encoder, inbuf, in_count, outbuf, sizeof(outbuf));
 
         if (out_count < 0) {
-            BASE64_DEBUGF("base64_encode(): error encoding base64");
+            BASE64_DEBUGF("base64_encode(): %s", base64_error_message(out_count));
             return out_count;
         }
 
@@ -211,7 +229,7 @@ int base64_encode_stream(FILE *input, FILE *output, unsigned int flags) {
     ssize_t out_count = base64_encode_finish(&encoder, outbuf, sizeof(outbuf));
 
     if (out_count < 0) {
-        BASE64_DEBUGF("base64_encode_finish(): error encoding base64");
+        BASE64_DEBUGF("base64_encode_finish(): %s", base64_error_message(out_count));
         return out_count;
     }
 
@@ -224,4 +242,42 @@ int base64_encode_stream(FILE *input, FILE *output, unsigned int flags) {
     }
 
     return 0;
+}
+
+char *base64_encode_str(const uint8_t input[], size_t input_len, int flags) {
+    size_t buf_size = BASE64_ENCODE_OUTBUF_SIZE(input_len);
+    char *buf = malloc(buf_size);
+    if (buf == NULL) {
+        return NULL;
+    }
+
+    struct Base64Encoder encoder = BASE64_ENCODER_INIT(flags);
+
+    ssize_t count1 = base64_encode_chunk(&encoder, input, input_len, buf, buf_size);
+
+    if (count1 < 0) {
+        BASE64_DEBUGF("base64_encode(): %s", base64_error_message(count1));
+        errno = EINVAL;
+        return NULL;
+    }
+
+    ssize_t count2 = base64_encode_finish(&encoder, buf + count1, buf_size - count1);
+
+    if (count2 < 0) {
+        BASE64_DEBUGF("base64_encode_finish(): %s", base64_error_message(count2));
+        errno = EINVAL;
+        return NULL;
+    }
+
+    size_t actual_size = count1 + count2 + 1;
+    assert(actual_size <= buf_size);
+
+    if (actual_size < buf_size) {
+        char *new_buf = realloc(buf, actual_size);
+        if (new_buf != NULL) {
+            buf = new_buf;
+        }
+    }
+
+    return buf;
 }

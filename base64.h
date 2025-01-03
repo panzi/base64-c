@@ -58,6 +58,9 @@ struct Base64Decoder {
 #define BASE64_NUM_CHARS(NBYTES) (((NBYTES) * 4 + 2) / 3)
 #define BASE64_NUM_BYTES(NCHARS) (((NCHARS) * 3 + 3) / 4)
 
+#define BASE64_DECODE_OUTBUF_SIZE(NCHARS) (BASE64_NUM_BYTES(NCHARS) + 3)
+#define BASE64_ENCODE_OUTBUF_SIZE(NBYTES) (BASE64_NUM_CHARS(NBYTES) + 5)
+
 BASE64_EXPORT ssize_t base64_decode(const char *input, size_t input_len, uint8_t output[], size_t output_len, int flags);
 BASE64_EXPORT ssize_t base64_decode_chunk(struct Base64Decoder *decoder, const char *input, size_t input_len, uint8_t output[], size_t output_len);
 BASE64_EXPORT ssize_t base64_decode_finish(struct Base64Decoder *decoder, uint8_t output[], size_t output_len);
@@ -77,6 +80,7 @@ struct Base64Encoder {
 BASE64_EXPORT ssize_t base64_encode(const uint8_t input[], size_t input_len, char output[], size_t output_len, int flags);
 BASE64_EXPORT ssize_t base64_encode_chunk(struct Base64Encoder *encoder, const uint8_t input[], size_t input_len, char output[], size_t output_len);
 BASE64_EXPORT ssize_t base64_encode_finish(struct Base64Encoder *encoder, char output[], size_t output_len);
+BASE64_EXPORT char   *base64_encode_str(const uint8_t input[], size_t input_len, int flags);
 
 BASE64_EXPORT int base64_encode_stream(FILE *input, FILE *output, unsigned int flags);
 

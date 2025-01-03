@@ -232,8 +232,8 @@ ssize_t base64_decode_finish(struct Base64Decoder *decoder, uint8_t output[], si
 
 int base64_decode_stream(FILE *input, FILE *output, unsigned int flags) {
     struct Base64Decoder decoder = BASE64_DECODER_INIT(flags & ~BASE64_ALLOW_WHITESPACE);
-    char inbuf[(BUFSIZ * 4 + 2) / 3];
-    uint8_t outbuf[BUFSIZ + 3];
+    char inbuf[(16 * 1024 * 4 + 2) / 3];
+    uint8_t outbuf[16 * 1024 + 3];
     unsigned int allow_ws = flags & BASE64_ALLOW_WHITESPACE;
 
     for (;;) {
@@ -253,7 +253,7 @@ int base64_decode_stream(FILE *input, FILE *output, unsigned int flags) {
         ssize_t out_count = base64_decode_chunk(&decoder, inbuf, in_count, outbuf, sizeof(outbuf));
 
         if (out_count < 0) {
-            BASE64_DEBUGF("base64_decode(): error parsing base64");
+            BASE64_DEBUGF("base64_decode(): %s", base64_error_message(out_count));
             return out_count;
         }
 
@@ -269,7 +269,7 @@ int base64_decode_stream(FILE *input, FILE *output, unsigned int flags) {
     ssize_t out_count = base64_decode_finish(&decoder, outbuf, sizeof(outbuf));
 
     if (out_count < 0) {
-        BASE64_DEBUGF("base64_decode_finish(): error parsing base64");
+        BASE64_DEBUGF("base64_decode_finish(): %s", base64_error_message(out_count));
         return out_count;
     }
 
