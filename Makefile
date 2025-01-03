@@ -7,6 +7,8 @@ BIN_OBJ = $(BUILD_DIR)/main.o $(OBJ)
 SO = $(BUILD_DIR)/libbase64.so
 LIB = $(BUILD_DIR)/libbase64.a
 BIN = $(BUILD_DIR)/base64
+TEST_BIN = $(BUILD_DIR)/base64_test
+TEST_OBJ = $(BUILD_DIR)/base64_test.o $(OBJ)
 DEBUG = ON
 AR = ar
 PREFIX = /usr/local
@@ -39,10 +41,15 @@ uninstall:
 		$(PREFIX)/lib/libbase64.so \
 		$(PREFIX)/lib/libbase64.a
 
-test: $(BIN)
-	./test.sh $(BIN)
+test: $(BIN) $(TEST_BIN)
+	$(TEST_BIN)
+	@echo
+	./tests/test.sh $(BIN)
 
 $(BIN): $(BIN_OBJ)
+	$(CC) $(CFLAGS) -o $@ $^
+
+$(TEST_BIN): $(TEST_OBJ)
 	$(CC) $(CFLAGS) -o $@ $^
 
 $(SO): $(SO_OBJ)
@@ -51,11 +58,14 @@ $(SO): $(SO_OBJ)
 $(LIB): $(OBJ)
 	$(AR) rcs $@ $^
 
-$(BUILD_DIR)/so_%.o: %.c base64.h
+$(BUILD_DIR)/base64_test.o: tests/tests.c src/base64.h
+	$(CC) $(CFLAGS) -Isrc -c -o $@ $<
+
+$(BUILD_DIR)/so_%.o: src/%.c src/base64.h
 	$(CC) $(CFLAGS) -fPIC -DWIN_EXPORT -c -o $@ $<
 
-$(BUILD_DIR)/%.o: %.c base64.h
+$(BUILD_DIR)/%.o: src/%.c src/base64.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -v $(BIN_OBJ) $(SO_OBJ) $(SO) $(LIB) $(BIN)
+	rm -v $(BIN_OBJ) $(SO_OBJ) $(SO) $(LIB) $(BIN) $(BUILD_DIR)/base64_test.o

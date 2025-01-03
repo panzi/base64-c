@@ -4,17 +4,24 @@ set -eo pipefail
 
 export LANG=C
 
-base64=${1:-./build/debug/base64}
+base64=$1
+
+if [[ -z "$base64" ]]; then
+    SELF=$(readlink -f "$0")
+    DIR=$(dirname "$SELF")
+    base64="$DIR/../build/debug/base64"
+fi
 
 error_count=0
 test_count=0
 
 function print_summary {
-    echo
     echo "$test_count tests, $((test_count-error_count)) successful, $error_count failed"
 }
 
 trap print_summary EXIT
+
+echo "Running command line tests..."
 
 for len in {0..256} 8192 9000; do
     b64=$(head -c "$len" /dev/urandom | base64 -w0)
