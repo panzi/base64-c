@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -std=gnu2x -Werror
+CFLAGS = -Wall -std=gnu2x -Werror -fvisibility=hidden
 BUILD_DIR = build
 OBJ = $(BUILD_DIR)/encode.o $(BUILD_DIR)/decode.o $(BUILD_DIR)/util.o
 SO_OBJ = $(BUILD_DIR)/so_encode.o $(BUILD_DIR)/so_decode.o $(BUILD_DIR)/so_util.o
@@ -52,7 +52,7 @@ $(LIB): $(OBJ)
 	$(AR) rcs $@ $^
 
 $(BUILD_DIR)/so_%.o: %.c base64.h
-	$(CC) $(CFLAGS) -fPIC -c -o $@ $<
+	$(CC) $(CFLAGS) -fPIC -DWIN_EXPORT -c -o $@ $<
 
 $(BUILD_DIR)/%.o: %.c base64.h
 	$(CC) $(CFLAGS) -c -o $@ $<
