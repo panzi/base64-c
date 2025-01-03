@@ -29,14 +29,27 @@ static inline void base64_encode_quad(const uint8_t input[3], char output[4], co
     output[3] = table[b3 & 0x3F];
 }
 
-ssize_t base64_encode(struct Base64Encoder *encoder, const uint8_t input[], size_t input_len, char output[], size_t output_len) {
+ssize_t base64_encode(const uint8_t input[], size_t input_len, char output[], size_t output_len, int flags) {
+    struct Base64Encoder encoder = BASE64_ENCODER_INIT(flags);
+
+    ssize_t count1 = base64_encode_chunk(&encoder, input, input_len, output, output_len);
+
+    if (count1 < 0) {
+        return count1;
+    }
+
+    ssize_t count2 = base64_encode_finish(&encoder, output, output_len);
+
+    if (count2 < 0) {
+        return count2;
+    }
+
+    return count1 + count2;
+}
+
+ssize_t base64_encode_chunk(struct Base64Encoder *encoder, const uint8_t input[], size_t input_len, char output[], size_t output_len) {
     size_t buf_size = encoder->buf_size;
     assert(buf_size <= 3);
-
-    if (input_len > (((size_t)SSIZE_MAX - 2) / 4) - buf_size || ((input_len + buf_size) * 4 + 2) / 3 > (size_t)SSIZE_MAX) {
-        fprintf(stderr, "input_len too big: %zu > %zu\n", input_len, (size_t)SSIZE_MAX);
-        return -1;
-    }
 
     size_t input_index = 0;
     ssize_t output_index = 0;
@@ -55,8 +68,8 @@ ssize_t base64_encode(struct Base64Encoder *encoder, const uint8_t input[], size
         }
 
         if (output_len < 4) {
-            fprintf(stderr, "output buffer too small\n");
-            return -1;
+            BASE64_DEBUGF("output buffer too small: %zu < 4", output_len);
+            return BASE64_ERROR_BUFFER_SIZE;
         }
 
         base64_encode_quad(buf, output, table);
@@ -67,8 +80,8 @@ ssize_t base64_encode(struct Base64Encoder *encoder, const uint8_t input[], size
     size_t trunc_input_len = input_len - (input_len - input_index) % 3;
 
     if (trunc_input_len / 3 > (output_len - output_index) / 4) {
-        fprintf(stderr, "output buffer too small\n");
-        return -1;
+        BASE64_DEBUGF("output buffer too small: %zu > %zu", trunc_input_len / 3, (output_len - output_index) / 4);
+        return BASE64_ERROR_BUFFER_SIZE;
     }
 
     for (; input_index < trunc_input_len; input_index += 3) {
@@ -107,8 +120,8 @@ ssize_t base64_encode_finish(struct Base64Encoder *encoder, char output[], size_
         size_t b64_size = (buf_size * 4 + 2) / 3;
 
         if (b64_size > output_len) {
-            fprintf(stderr, "output buffer too small\n");
-            return -1;
+            BASE64_DEBUGF("output buffer too small: %zu > %zu", b64_size, output_len);
+            return BASE64_ERROR_BUFFER_SIZE;
         }
 
         output[0] = table[b1 >> 2];
@@ -131,8 +144,8 @@ ssize_t base64_encode_finish(struct Base64Encoder *encoder, char output[], size_
     }
 
     if (4 > output_len) {
-        fprintf(stderr, "output buffer too small\n");
-        return -1;
+        BASE64_DEBUGF("output buffer too small: 4 > %zu", output_len);
+        return BASE64_ERROR_BUFFER_SIZE;
     }
 
     output[0] = table[b1 >> 2];
@@ -167,24 +180,24 @@ int base64_encode_stream(FILE *input, FILE *output, unsigned int flags) {
 
         if (in_count == 0) {
             if (ferror(input)) {
-                fprintf(stderr, "fread(): %s\n", strerror(errno));
-                return errno;
+                BASE64_DEBUGF("fread(): %s", strerror(errno));
+                return BASE64_ERROR_IO;
             }
             break;
         }
 
-        ssize_t out_count = base64_encode(&encoder, inbuf, in_count, outbuf, sizeof(outbuf));
+        ssize_t out_count = base64_encode_chunk(&encoder, inbuf, in_count, outbuf, sizeof(outbuf));
 
         if (out_count < 0) {
-            fprintf(stderr, "base64_encode(): error encoding base64\n");
-            return EINVAL;
+            BASE64_DEBUGF("base64_encode(): error encoding base64");
+            return out_count;
         }
 
         if (out_count > 0) {
             size_t written_count = fwrite(outbuf, 1, out_count, output);
             if (written_count < out_count) {
-                fprintf(stderr, "fwrite(): %s\n", strerror(errno));
-                return errno;
+                BASE64_DEBUGF("fwrite(): %s", strerror(errno));
+                return BASE64_ERROR_IO;
             }
         }
     }
@@ -192,15 +205,15 @@ int base64_encode_stream(FILE *input, FILE *output, unsigned int flags) {
     ssize_t out_count = base64_encode_finish(&encoder, outbuf, sizeof(outbuf));
 
     if (out_count < 0) {
-        fprintf(stderr, "base64_encode_finish(): error encoding base64\n");
-        return EINVAL;
+        BASE64_DEBUGF("base64_encode_finish(): error encoding base64");
+        return out_count;
     }
 
     if (out_count > 0) {
         size_t written_count = fwrite(outbuf, 1, out_count, output);
         if (written_count < out_count) {
-            fprintf(stderr, "fwrite(): %s\n", strerror(errno));
-            return errno;
+            BASE64_DEBUGF("fwrite(): %s", strerror(errno));
+            return BASE64_ERROR_IO;
         }
     }
 

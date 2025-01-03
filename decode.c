@@ -5,8 +5,8 @@
 #include <string.h>
 #include <assert.h>
 
-#define BASE64_CHAR_ERROR   ((unsigned int)0x100)
-#define BASE64_CHAR_PADDING ((unsigned int)0x200)
+#define BASE64_CHAR_ERROR   ((uint16_t)0x100)
+#define BASE64_CHAR_PADDING ((uint16_t)0x200)
 
 static const uint16_t BASE64_DECODE_TABLE[256] = {
     [ 0 ... 255 ] = BASE64_CHAR_ERROR,
@@ -80,18 +80,22 @@ static inline int base64_decode_quad(const char input[4], uint8_t output[3], con
     c4 = table[c4];
 
     if (((c1 | c2 | c3 | c4) & BASE64_CHAR_ERROR) | ((c1 | c2) & BASE64_CHAR_PADDING)) {
-        fprintf(stderr, "illegal input: \"%c%c%c%c\"\n", input[0], input[1], input[2], input[3]);
-        fprintf(stderr, "                %c%c%c%c\n",
+        BASE64_DEBUGF("illegal input: \"%c%c%c%c\"",
+            input[0], input[1], input[2], input[3]);
+
+        BASE64_DEBUGF("                %c%c%c%c",
             c1 == BASE64_CHAR_ERROR ? '^' : ' ',
             c2 == BASE64_CHAR_ERROR ? '^' : ' ',
             c3 == BASE64_CHAR_ERROR ? '^' : ' ',
             c4 == BASE64_CHAR_ERROR ? '^' : ' ');
-        return -1;
+
+        return BASE64_ERROR_ILLEGAL_SYNTAX;
     }
 
     if (~(c4 & BASE64_CHAR_PADDING) & (c3 & BASE64_CHAR_PADDING)) {
-        fprintf(stderr, "illegal input (padding): \"%c%c%c%c\"\n", input[0], input[1], input[2], input[3]);
-        return -1;
+        BASE64_DEBUGF("illegal input (padding): \"%c%c%c%c\"",
+            input[0], input[1], input[2], input[3]);
+        return BASE64_ERROR_ILLEGAL_SYNTAX;
     }
 
     uint8_t b1 = c1;
@@ -106,20 +110,34 @@ static inline int base64_decode_quad(const char input[4], uint8_t output[3], con
     return 3 - (c3 >> 9) - (c4 >> 9);
 }
 
-ssize_t base64_decode(struct Base64Decoder *decoder, const char *input, size_t input_len, uint8_t output[], size_t output_len) {
+ssize_t base64_decode(const char *input, size_t input_len, uint8_t output[], size_t output_len, int flags) {
+    struct Base64Decoder decoder = BASE64_DECODER_INIT(flags);
+
+    ssize_t count1 = base64_decode_chunk(&decoder, input, input_len, output, output_len);
+
+    if (count1 < 0) {
+        return count1;
+    }
+
+    ssize_t count2 = base64_decode_finish(&decoder, output + count1, output_len - count1);
+
+    if (count2 < 0) {
+        return count2;
+    }
+
+    return count1 + count2;
+}
+
+ssize_t base64_decode_chunk(struct Base64Decoder *decoder, const char *input, size_t input_len, uint8_t output[], size_t output_len) {
     size_t buf_size = decoder->buf_size;
     assert(buf_size <= 4);
-
-    if ((((input_len + buf_size) * 3) / 4) > (size_t)SSIZE_MAX) {
-        fprintf(stderr, "input_len too big: %zu > %zu\n", input_len, (size_t)SSIZE_MAX);
-        return -1;
-    }
 
     size_t input_index = 0;
     ssize_t output_index = 0;
 
     char *buf = decoder->buf;
-    const uint16_t *table = decoder->flags & BASE64_DIALECT_URLSAFE ? URLSAFE_BASE64_DECODE_TABLE : BASE64_DECODE_TABLE;
+    const uint16_t *table = decoder->flags & BASE64_DIALECT_URLSAFE ?
+        URLSAFE_BASE64_DECODE_TABLE : BASE64_DECODE_TABLE;
 
     if (buf_size > 0) {
         size_t rem = 4 - buf_size;
@@ -132,13 +150,13 @@ ssize_t base64_decode(struct Base64Decoder *decoder, const char *input, size_t i
         }
 
         if (output_len < 3) {
-            fprintf(stderr, "output buffer too small\n");
-            return -1;
+            BASE64_DEBUGF("output buffer too small: %zu < 3", output_len);
+            return BASE64_ERROR_BUFFER_SIZE;
         }
 
         int out_count = base64_decode_quad(buf, output, table);
         if (out_count < 0) {
-            return -1;
+            return out_count;
         }
         output_index = (ssize_t)out_count;
         input_index = read_count;
@@ -147,14 +165,14 @@ ssize_t base64_decode(struct Base64Decoder *decoder, const char *input, size_t i
     size_t trunc_input_len = input_len - (input_len - input_index) % 4;
 
     if (trunc_input_len / 4 * 3 > (output_len - output_index)) {
-        fprintf(stderr, "output buffer too small\n");
-        return -1;
+        BASE64_DEBUGF("output buffer too small: %zu > %zu", trunc_input_len / 4 * 3, (output_len - output_index));
+        return BASE64_ERROR_BUFFER_SIZE;
     }
 
     for (; input_index < trunc_input_len; input_index += 4) {
         int out_count = base64_decode_quad(input + input_index, output + output_index, table);
         if (out_count < 0) {
-            return -1;
+            return out_count;
         }
         output_index += (ssize_t)out_count;
     }
@@ -178,24 +196,25 @@ ssize_t base64_decode_finish(struct Base64Decoder *decoder, uint8_t output[], si
     }
 
     if (!(decoder->flags & BASE64_ALLOW_TRUNCATE)) {
-        fprintf(stderr, "missing padding! (buf_size=%zu, buf={0x%02x, 0x%02x, 0x%02x, 0x%02x})\n",
+        BASE64_DEBUGF("missing padding! (buf_size=%zu, buf={0x%02x, 0x%02x, 0x%02x, 0x%02x})",
             buf_size,
             (unsigned int)decoder->buf[0],
             (unsigned int)decoder->buf[1],
             (unsigned int)decoder->buf[2],
             (unsigned int)decoder->buf[3]);
-        return -1;
+        return BASE64_ERROR_ILLEGAL_SYNTAX;
     }
 
     char *buf = decoder->buf;
     memset(buf + buf_size, '=', 4 - buf_size);
 
     if (output_len < ((buf_size * 3) / 4)) {
-        fprintf(stderr, "output buffer too small\n");
-        return -1;
+        BASE64_DEBUGF("output buffer too small: %zu < %zu", output_len, ((buf_size * 3) / 4));
+        return BASE64_ERROR_BUFFER_SIZE;
     }
 
-    const uint16_t *table = decoder->flags & BASE64_DIALECT_URLSAFE ? URLSAFE_BASE64_DECODE_TABLE : BASE64_DECODE_TABLE;
+    const uint16_t *table = decoder->flags & BASE64_DIALECT_URLSAFE ?
+        URLSAFE_BASE64_DECODE_TABLE : BASE64_DECODE_TABLE;
     int out_count = base64_decode_quad(buf, output, table);
 
     if (out_count >= 0) {
@@ -215,24 +234,24 @@ int base64_decode_stream(FILE *input, FILE *output, unsigned int flags) {
 
         if (in_count == 0) {
             if (ferror(input)) {
-                fprintf(stderr, "fread(): %s\n", strerror(errno));
-                return errno;
+                BASE64_DEBUGF("fread(): %s", strerror(errno));
+                return BASE64_ERROR_IO;
             }
             break;
         }
 
-        ssize_t out_count = base64_decode(&decoder, inbuf, in_count, outbuf, sizeof(outbuf));
+        ssize_t out_count = base64_decode_chunk(&decoder, inbuf, in_count, outbuf, sizeof(outbuf));
 
         if (out_count < 0) {
-            fprintf(stderr, "base64_decode(): error parsing base64\n");
-            return EINVAL;
+            BASE64_DEBUGF("base64_decode(): error parsing base64");
+            return out_count;
         }
 
         if (out_count > 0) {
             size_t written_count = fwrite(outbuf, 1, out_count, output);
             if (written_count < out_count) {
-                fprintf(stderr, "fwrite(): %s\n", strerror(errno));
-                return errno;
+                BASE64_DEBUGF("fwrite(): %s", strerror(errno));
+                return BASE64_ERROR_IO;
             }
         }
     }
@@ -240,15 +259,15 @@ int base64_decode_stream(FILE *input, FILE *output, unsigned int flags) {
     ssize_t out_count = base64_decode_finish(&decoder, outbuf, sizeof(outbuf));
 
     if (out_count < 0) {
-        fprintf(stderr, "base64_decode_finish(): error parsing base64\n");
-        return EINVAL;
+        BASE64_DEBUGF("base64_decode_finish(): error parsing base64");
+        return out_count;
     }
 
     if (out_count > 0) {
         size_t written_count = fwrite(outbuf, 1, out_count, output);
         if (written_count < out_count) {
-            fprintf(stderr, "fwrite(): %s\n", strerror(errno));
-            return errno;
+            BASE64_DEBUGF("fwrite(): %s", strerror(errno));
+            return BASE64_ERROR_IO;
         }
     }
 

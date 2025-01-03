@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -std=gnu2x -Werror
 BUILD_DIR = build
-OBJ = $(BUILD_DIR)/main.o $(BUILD_DIR)/encode.o $(BUILD_DIR)/decode.o
+OBJ = $(BUILD_DIR)/main.o $(BUILD_DIR)/encode.o $(BUILD_DIR)/decode.o $(BUILD_DIR)/error.o
 BIN = $(BUILD_DIR)/base64
 DEBUG = ON
 

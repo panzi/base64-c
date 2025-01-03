@@ -55,7 +55,8 @@ int main(int argc, char *argv[]) {
         if (optind >= argc) {
             int errnum = base64_encode_stream(stdin, stdout, flags);
             if (errnum != 0) {
-                fprintf(stderr, "Error encoding base64 from <stdin>\n");
+                fprintf(stderr, "Error encoding base64 from <stdin>: %s\n",
+                    base64_error_message(errnum));
             }
         } else {
             for (int argind = optind; argind < argc; ++ argind) {
@@ -66,7 +67,8 @@ int main(int argc, char *argv[]) {
                 } else {
                     int errnum = base64_encode_stream(fp, stdout, flags);
                     if (errnum != 0) {
-                        fprintf(stderr, "Error encoding base64 from: %s\n", filename);
+                        fprintf(stderr, "Error encoding base64 from %s: %s\n",
+                            filename, base64_error_message(errnum));
                     }
                     fclose(fp);
                 }
@@ -74,9 +76,10 @@ int main(int argc, char *argv[]) {
         }
     } else {
         if (optind >= argc) {
-            int errnum = base64_decode_stream(stdin, stdout, 0);
+            int errnum = base64_decode_stream(stdin, stdout, flags);
             if (errnum != 0) {
-                fprintf(stderr, "Error parsing base64 from <stdin>\n");
+                fprintf(stderr, "Error parsing base64 from <stdin>: %s\n",
+                    base64_error_message(errnum));
             }
         } else {
             for (int argind = optind; argind < argc; ++ argind) {
@@ -85,9 +88,10 @@ int main(int argc, char *argv[]) {
                 if (fp == NULL) {
                     perror(filename);
                 } else {
-                    int errnum = base64_decode_stream(fp, stdout, 0);
+                    int errnum = base64_decode_stream(fp, stdout, flags);
                     if (errnum != 0) {
-                        fprintf(stderr, "Error parsing base64 from: %s\n", filename);
+                        fprintf(stderr, "Error parsing base64 from %s: %s\n",
+                            filename, base64_error_message(errnum));
                     }
                     fclose(fp);
                 }
