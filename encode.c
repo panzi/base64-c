@@ -78,9 +78,15 @@ ssize_t base64_encode_chunk(struct Base64Encoder *encoder, const uint8_t input[]
     }
 
     size_t trunc_input_len = input_len - (input_len - input_index) % 3;
+    size_t trunc_input_rem = trunc_input_len - input_index;
 
-    if (trunc_input_len / 3 > (output_len - output_index) / 4) {
-        BASE64_DEBUGF("output buffer too small: %zu > %zu", trunc_input_len / 3, (output_len - output_index) / 4);
+    if (trunc_input_rem > (SIZE_MAX - 2) / 4) {
+        BASE64_DEBUGF("output buffer size calculation overflow: %zu > %zu", trunc_input_rem, (SIZE_MAX - 2) / 4);
+        return BASE64_ERROR_BUFFER_SIZE;
+    }
+
+    if ((trunc_input_rem * 4 + 2) / 3 > (output_len - output_index)) {
+        BASE64_DEBUGF("output buffer too small: %zu > %zu", (trunc_input_rem * 4 + 2) / 3, (output_len - output_index));
         return BASE64_ERROR_BUFFER_SIZE;
     }
 
@@ -173,7 +179,7 @@ ssize_t base64_encode_finish(struct Base64Encoder *encoder, char output[], size_
 int base64_encode_stream(FILE *input, FILE *output, unsigned int flags) {
     struct Base64Encoder encoder = BASE64_ENCODER_INIT(flags);
     uint8_t inbuf[BUFSIZ];
-    char outbuf[BUFSIZ * 4 / 3];
+    char outbuf[(BUFSIZ * 4 + 2) / 3 + 4];
 
     for (;;) {
         size_t in_count = fread(inbuf, 1, sizeof(inbuf), input);
