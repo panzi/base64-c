@@ -1,8 +1,8 @@
 CC = gcc
 CFLAGS = -Wall -std=gnu2x -Werror
 BUILD_DIR = build
-OBJ = $(BUILD_DIR)/encode.o $(BUILD_DIR)/decode.o $(BUILD_DIR)/error.o
-SO_OBJ = $(BUILD_DIR)/so_encode.o $(BUILD_DIR)/so_decode.o $(BUILD_DIR)/so_error.o
+OBJ = $(BUILD_DIR)/encode.o $(BUILD_DIR)/decode.o $(BUILD_DIR)/util.o
+SO_OBJ = $(BUILD_DIR)/so_encode.o $(BUILD_DIR)/so_decode.o $(BUILD_DIR)/so_util.o
 BIN_OBJ = $(BUILD_DIR)/main.o $(OBJ)
 SO = $(BUILD_DIR)/libbase64.so
 LIB = $(BUILD_DIR)/libbase64.a
@@ -15,7 +15,7 @@ ifeq ($(DEBUG),ON)
 	CFLAGS += -g
 	BUILD_DIR = build/debug
 else
-	CFLAGS += -O2 -DNDEBUG
+	CFLAGS += -O3 -DNDEBUG
 	BUILD_DIR = build/release
 endif
 
@@ -58,4 +58,4 @@ $(BUILD_DIR)/%.o: %.c base64.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -v $(OBJ) $(BIN_OBJ) $(SO_OBJ) $(SO) $(LIB) $(BIN)
+	rm -v $(BIN_OBJ) $(SO_OBJ) $(SO) $(LIB) $(BIN)

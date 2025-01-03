@@ -18,7 +18,8 @@ static void help(int argc, char *argv[]) {
     printf("\n");
     printf("    -h          Print this help message.\n");
     printf("    -d          Decode Base 64.\n");
-    printf("    -t          Allow truncated padding when decoding and don't emit padding when encoding.\n");
+    printf("    -t          Allow truncated padding when decoding, don't emit padding when encoding.\n");
+    printf("    -s          Allow white-space when decoding.\n");
     printf("    -u          Use URL-safe Base 64 (use '-' and '_' instead of '+' and '/').\n");
 }
 
@@ -27,7 +28,7 @@ int main(int argc, char *argv[]) {
     unsigned int flags = 0;
 
     int opt = -1;
-    while ((opt = getopt(argc, argv, "hdtu")) != -1) {
+    while ((opt = getopt(argc, argv, "hdtus")) != -1) {
         switch (opt) {
             case 'h':
                 help(argc, argv);
@@ -43,6 +44,10 @@ int main(int argc, char *argv[]) {
 
             case 'u':
                 flags |= BASE64_DIALECT_URLSAFE;
+                break;
+
+            case 's':
+                flags |= BASE64_ALLOW_WHITESPACE;
                 break;
 
             default:

@@ -40,10 +40,12 @@ extern "C" {
 #define BASE64_ERROR_IO             -3
 
 BASE64_EXPORT const char *base64_error_message(int error_code);
+BASE64_EXPORT size_t base64_strip_whitespace(char buffer[], size_t size);
 
-#define BASE64_DIALECT_URLSAFE 2
-
-#define BASE64_ALLOW_TRUNCATE 1
+// Flags
+#define BASE64_ALLOW_TRUNCATE   1
+#define BASE64_ALLOW_WHITESPACE 2
+#define BASE64_DIALECT_URLSAFE  4
 
 struct Base64Decoder {
     char buf[4];

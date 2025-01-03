@@ -231,9 +231,10 @@ ssize_t base64_decode_finish(struct Base64Decoder *decoder, uint8_t output[], si
 }
 
 int base64_decode_stream(FILE *input, FILE *output, unsigned int flags) {
-    struct Base64Decoder decoder = BASE64_DECODER_INIT(flags);
+    struct Base64Decoder decoder = BASE64_DECODER_INIT(flags & ~BASE64_ALLOW_WHITESPACE);
     char inbuf[(BUFSIZ * 4 + 2) / 3];
     uint8_t outbuf[BUFSIZ + 3];
+    unsigned int allow_ws = flags & BASE64_ALLOW_WHITESPACE;
 
     for (;;) {
         size_t in_count = fread(inbuf, 1, sizeof(inbuf), input);
@@ -246,6 +247,9 @@ int base64_decode_stream(FILE *input, FILE *output, unsigned int flags) {
             break;
         }
 
+        if (allow_ws) {
+            in_count = base64_strip_whitespace(inbuf, in_count);
+        }
         ssize_t out_count = base64_decode_chunk(&decoder, inbuf, in_count, outbuf, sizeof(outbuf));
 
         if (out_count < 0) {
