@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -std=gnu2x -Werror -fvisibility=hidden
-BUILD_DIR = build
+BUILD_PREFIX = build
 OBJ = $(BUILD_DIR)/encode.o $(BUILD_DIR)/decode.o $(BUILD_DIR)/util.o
 SO_OBJ = $(BUILD_DIR)/so_encode.o $(BUILD_DIR)/so_decode.o $(BUILD_DIR)/so_util.o
 BIN_OBJ = $(BUILD_DIR)/main.o $(OBJ)
@@ -13,10 +13,10 @@ PREFIX = /usr/local
 
 ifeq ($(DEBUG),ON)
 	CFLAGS += -g
-	BUILD_DIR = build/debug
+	BUILD_DIR = $(BUILD_PREFIX)/debug
 else
 	CFLAGS += -O3 -DNDEBUG
-	BUILD_DIR = build/release
+	BUILD_DIR = $(BUILD_PREFIX)/release
 endif
 
 .PHONY: all so lib clean test install uninstall

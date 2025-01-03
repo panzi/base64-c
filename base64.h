@@ -87,7 +87,7 @@ BASE64_EXPORT int base64_encode_stream(FILE *input, FILE *output, unsigned int f
 #ifdef NDEBUG
 #   define BASE64_DEBUGF(FMT, ...)
 #else
-#   define BASE64_DEBUGF(FMT, ...) fprintf(stderr, "%s:%u: " FMT "\n", __FILE__, __LINE__ __VA_OPT__(,) __VA_ARGS__)
+#   define BASE64_DEBUGF(FMT, ...) fprintf(stderr, "%s:%u: %s " FMT "\n", __FILE__, __LINE__, __func__ __VA_OPT__(,) __VA_ARGS__)
 #endif
 
 #ifdef __cplusplus
