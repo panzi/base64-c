@@ -55,6 +55,9 @@ struct Base64Decoder {
 
 #define BASE64_DECODER_INIT(FLAGS) { .buf = { 0, 0, 0, 0 }, .buf_size = 0, .flags = (FLAGS) }
 
+#define BASE64_NUM_CHARS(NBYTES) (((NBYTES) * 4 + 2) / 3)
+#define BASE64_NUM_BYTES(NCHARS) (((NCHARS) * 3 + 3) / 4)
+
 BASE64_EXPORT ssize_t base64_decode(const char *input, size_t input_len, uint8_t output[], size_t output_len, int flags);
 BASE64_EXPORT ssize_t base64_decode_chunk(struct Base64Decoder *decoder, const char *input, size_t input_len, uint8_t output[], size_t output_len);
 BASE64_EXPORT ssize_t base64_decode_finish(struct Base64Decoder *decoder, uint8_t output[], size_t output_len);
