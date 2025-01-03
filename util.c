@@ -5,7 +5,7 @@
 
 const char *base64_error_message(int error_code) {
     switch (error_code) {
-        case BASE64_ERROR_ILLEGAL_SYNTAX:
+        case BASE64_ERROR_SYNTAX:
             return "illegal base 64 syntax";
 
         case BASE64_ERROR_BUFFER_SIZE:

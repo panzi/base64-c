@@ -35,9 +35,9 @@ extern "C" {
 #   endif
 #endif
 
-#define BASE64_ERROR_ILLEGAL_SYNTAX -1
-#define BASE64_ERROR_BUFFER_SIZE    -2
-#define BASE64_ERROR_IO             -3
+#define BASE64_ERROR_SYNTAX      -1
+#define BASE64_ERROR_BUFFER_SIZE -2
+#define BASE64_ERROR_IO          -3
 
 BASE64_EXPORT const char *base64_error_message(int error_code);
 BASE64_EXPORT size_t base64_strip_whitespace(char buffer[], size_t size);

@@ -89,13 +89,13 @@ static inline int base64_decode_quad(const char input[4], uint8_t output[3], con
             c3 == BASE64_CHAR_ERROR ? '^' : ' ',
             c4 == BASE64_CHAR_ERROR ? '^' : ' ');
 
-        return BASE64_ERROR_ILLEGAL_SYNTAX;
+        return BASE64_ERROR_SYNTAX;
     }
 
     if (~(c4 & BASE64_CHAR_PADDING) & (c3 & BASE64_CHAR_PADDING)) {
         BASE64_DEBUGF("illegal input (padding): \"%c%c%c%c\"",
             input[0], input[1], input[2], input[3]);
-        return BASE64_ERROR_ILLEGAL_SYNTAX;
+        return BASE64_ERROR_SYNTAX;
     }
 
     uint8_t b1 = c1;
@@ -208,7 +208,7 @@ ssize_t base64_decode_finish(struct Base64Decoder *decoder, uint8_t output[], si
             (unsigned int)decoder->buf[1],
             (unsigned int)decoder->buf[2],
             (unsigned int)decoder->buf[3]);
-        return BASE64_ERROR_ILLEGAL_SYNTAX;
+        return BASE64_ERROR_SYNTAX;
     }
 
     char *buf = decoder->buf;
