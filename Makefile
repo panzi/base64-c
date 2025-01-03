@@ -21,7 +21,7 @@ else
 	BUILD_DIR = $(BUILD_PREFIX)/release
 endif
 
-.PHONY: all so lib clean test install uninstall
+.PHONY: all so lib clean test test-bin install uninstall
 
 all: $(BIN) $(SO) $(LIB)
 
@@ -29,8 +29,10 @@ so: $(SO)
 
 lib: $(LIB)
 
+test-bin: $(TEST_BIN)
+
 install: $(BIN) $(SO) $(LIB)
-	cp base64.h $(PREFIX)/include
+	cp src/base64.h $(PREFIX)/include
 	cp $(BIN) $(PREFIX)/bin
 	cp $(SO) $(LIB) $(PREFIX)/lib
 
