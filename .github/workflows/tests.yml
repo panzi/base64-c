@@ -15,7 +15,11 @@ jobs:
     - uses: actions/checkout@v2
     - name: Build
       run: |
+        mkdir -p build/debug build/release
+        make -j`nproc`
+        make -j`nproc` DEBUG=OFF
         make -j`nproc` test-bin
+        make -j`nproc` test-bin DEBUG=OFF
     - name: Tests
       run: |
         make test
