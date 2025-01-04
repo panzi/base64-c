@@ -1,9 +1,11 @@
 #include "base64.h"
+#include "internal.h"
 
 #include <errno.h>
 #include <limits.h>
 #include <string.h>
 #include <assert.h>
+#include <unistd.h>
 
 #define BASE64_CHAR_ERROR   ((uint16_t)0x100)
 #define BASE64_CHAR_PADDING ((uint16_t)0x200)
@@ -232,8 +234,8 @@ ssize_t base64_decode_finish(struct Base64Decoder *decoder, uint8_t output[], si
 
 int base64_decode_stream(FILE *input, FILE *output, unsigned int flags) {
     struct Base64Decoder decoder = BASE64_DECODER_INIT(flags & ~BASE64_ALLOW_WHITESPACE);
-    char inbuf[(16 * 1024 * 4 + 2) / 3];
-    uint8_t outbuf[16 * 1024 + 3];
+    char inbuf[(BASE64_BUFSIZ * 4 + 2) / 3];
+    uint8_t outbuf[BASE64_BUFSIZ + 3];
     unsigned int allow_ws = flags & BASE64_ALLOW_WHITESPACE;
 
     for (;;) {
@@ -282,4 +284,51 @@ int base64_decode_stream(FILE *input, FILE *output, unsigned int flags) {
     }
 
     return 0;
+}
+
+int base64_decode_fd(int infd, int outfd, unsigned int flags) {
+    struct Base64Decoder decoder = BASE64_DECODER_INIT(flags & ~BASE64_ALLOW_WHITESPACE);
+    char inbuf[(BASE64_BUFSIZ * 4 + 2) / 3];
+    uint8_t outbuf[BASE64_BUFSIZ + 3];
+    unsigned int allow_ws = flags & BASE64_ALLOW_WHITESPACE;
+
+    for (;;) {
+        ssize_t in_count = read(infd, inbuf, sizeof(inbuf));
+
+        if (in_count == 0) {
+            break;
+        } else if (in_count < 0) {
+            int errnum = errno;
+            if (errnum == EINTR) {
+                continue;
+            }
+            BASE64_DEBUGF("read(): %s", strerror(errnum));
+            return BASE64_ERROR_IO;
+        }
+
+        if (allow_ws) {
+            in_count = base64_strip_whitespace(inbuf, in_count);
+        }
+
+        ssize_t out_count = base64_decode_chunk(&decoder, inbuf, in_count, outbuf, sizeof(outbuf));
+
+        if (out_count < 0) {
+            BASE64_DEBUGF("base64_decode(): %s", base64_error_message(out_count));
+            return out_count;
+        }
+
+        int errnum = base64_write_all(outfd, outbuf, out_count);
+        if (errnum != 0) {
+            return errnum;
+        }
+    }
+
+    ssize_t out_count = base64_decode_finish(&decoder, outbuf, sizeof(outbuf));
+
+    if (out_count < 0) {
+        BASE64_DEBUGF("base64_decode_finish(): %s", base64_error_message(out_count));
+        return out_count;
+    }
+
+    return base64_write_all(outfd, outbuf, out_count);
 }

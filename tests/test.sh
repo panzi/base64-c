@@ -23,7 +23,7 @@ trap print_summary EXIT
 
 echo "Running command line tests..."
 
-for len in {0..256} 8192 9000; do
+for len in {0..256} 21851; do
     b64=$(head -c "$len" /dev/urandom | base64 -w0)
     if ! cmp -s <(echo -n "$b64" | base64 -d) <(echo -n "$b64" | "$base64" -d); then
         echo "Failed to decode [length=$len]: $b64">&2

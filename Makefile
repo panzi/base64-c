@@ -44,9 +44,9 @@ uninstall:
 		$(PREFIX)/lib/libbase64.a
 
 test: $(BIN) $(TEST_BIN)
-	$(TEST_BIN)
+	time $(TEST_BIN)
 	@echo
-	./tests/test.sh $(BIN)
+	time ./tests/test.sh $(BIN)
 
 $(BIN): $(BIN_OBJ)
 	$(CC) $(CFLAGS) -o $@ $^

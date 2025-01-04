@@ -1,10 +1,12 @@
 #include "base64.h"
+#include "internal.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
 #include <assert.h>
+#include <unistd.h>
 
 static const char *BASE64_ENCODE_TABLE =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -196,8 +198,8 @@ ssize_t base64_encode_finish(struct Base64Encoder *encoder, char output[], size_
 
 int base64_encode_stream(FILE *input, FILE *output, unsigned int flags) {
     struct Base64Encoder encoder = BASE64_ENCODER_INIT(flags);
-    uint8_t inbuf[16 * 1024];
-    char outbuf[(16 * 1024 * 4 + 2) / 3 + 4 + 1];
+    uint8_t inbuf[BASE64_BUFSIZ];
+    char outbuf[(BASE64_BUFSIZ * 4 + 2) / 3 + 4 + 1];
 
     for (;;) {
         size_t in_count = fread(inbuf, 1, sizeof(inbuf), input);
@@ -242,6 +244,48 @@ int base64_encode_stream(FILE *input, FILE *output, unsigned int flags) {
     }
 
     return 0;
+}
+
+int base64_encode_fd(int infd, int outfd, unsigned int flags) {
+    struct Base64Encoder encoder = BASE64_ENCODER_INIT(flags);
+    uint8_t inbuf[BASE64_BUFSIZ];
+    char outbuf[(BASE64_BUFSIZ * 4 + 2) / 3 + 4 + 1];
+
+    for (;;) {
+        ssize_t in_count = read(infd, inbuf, sizeof(inbuf));
+
+        if (in_count == 0) {
+            break;
+        } else if (in_count < 0) {
+            int errnum = errno;
+            if (errnum == EINTR) {
+                continue;
+            }
+            BASE64_DEBUGF("read(): %s", strerror(errnum));
+            return BASE64_ERROR_IO;
+        }
+
+        ssize_t out_count = base64_encode_chunk(&encoder, inbuf, in_count, outbuf, sizeof(outbuf));
+
+        if (out_count < 0) {
+            BASE64_DEBUGF("base64_encode(): %s", base64_error_message(out_count));
+            return out_count;
+        }
+
+        int errnum = base64_write_all(outfd, outbuf, out_count);
+        if (errnum != 0) {
+            return errnum;
+        }
+    }
+
+    ssize_t out_count = base64_encode_finish(&encoder, outbuf, sizeof(outbuf));
+
+    if (out_count < 0) {
+        BASE64_DEBUGF("base64_encode_finish(): %s", base64_error_message(out_count));
+        return out_count;
+    }
+
+    return base64_write_all(outfd, outbuf, out_count);
 }
 
 char *base64_encode_str(const uint8_t input[], size_t input_len, int flags) {

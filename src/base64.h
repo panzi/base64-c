@@ -66,6 +66,7 @@ BASE64_EXPORT ssize_t base64_decode_chunk(struct Base64Decoder *decoder, const c
 BASE64_EXPORT ssize_t base64_decode_finish(struct Base64Decoder *decoder, uint8_t output[], size_t output_len);
 
 BASE64_EXPORT int base64_decode_stream(FILE *input, FILE *output, unsigned int flags);
+BASE64_EXPORT int base64_decode_fd(int infd, int outfd, unsigned int flags);
 
 #define BASE64_SKIP_PADDING BASE64_ALLOW_TRUNCATE
 
@@ -83,6 +84,7 @@ BASE64_EXPORT ssize_t base64_encode_finish(struct Base64Encoder *encoder, char o
 BASE64_EXPORT char   *base64_encode_str(const uint8_t input[], size_t input_len, int flags);
 
 BASE64_EXPORT int base64_encode_stream(FILE *input, FILE *output, unsigned int flags);
+BASE64_EXPORT int base64_encode_fd(int infd, int outfd, unsigned int flags);
 
 #ifdef NDEBUG
 #   define BASE64_DEBUGF(FMT, ...)

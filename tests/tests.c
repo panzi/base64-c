@@ -26,9 +26,24 @@ typedef void (*test_func_t)(struct TestContext*);
         longjmp(ctx->env, -1); \
     }
 
+#define _test_assert_eq_fmt(EXPR) (_Generic( \
+        (EXPR), \
+        int:     "    %s %d\n", \
+        unsigned int: "    %s %u\n", \
+        float:   "    %s %f\n", \
+        double:  "    %s %lf\n", \
+        size_t:  "    %s %zu\n", \
+        ssize_t: "    %s %zd\n", \
+        const char*: "    %s \"%s\"\n", \
+        char*:   "    %s \"%s\"\n", \
+        char:    "    %s '%c'\n" \
+    ))
+
 #define test_assert_eq(EXPECTED, ACTUAL, ...) \
-    if ((EXPECTED) != (ACTUAL)) {\
+    if ((EXPECTED) != (ACTUAL)) { \
         fprintf(stderr, "%s:%u:%s: ASSERTION FAILED %s: " _test_msg_fmt("not equals" __VA_OPT__(,) __VA_ARGS__) "\n", __FILE__, __LINE__, __func__, STR(EXPECTED == ACTUAL) _test_msg_args(__VA_ARGS__)); \
+        fprintf(stderr, _test_assert_eq_fmt((EXPECTED)), "expected:", (EXPECTED)); \
+        fprintf(stderr, _test_assert_eq_fmt((ACTUAL)),   "  actual:", (ACTUAL)); \
         longjmp(ctx->env, -1); \
     }
 

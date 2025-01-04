@@ -14,14 +14,31 @@ Build
 Compile static and shared library, and `base64` binary:
 
 ```bash
-mkdir -p build/debug build/release
+mkdir -p build/debug
 make -j`nproc`
+```
+
+This generates these files:
+
+```
+build/debug/base64
+build/debug/libbase64.a
+build/debug/libbase64.so
 ```
 
 Compile in release mode:
 
 ```bash
+mkdir -p build/release
 make -j`nproc` DEBUG=OFF
+```
+
+This generates these files:
+
+```
+build/release/base64
+build/release/libbase64.a
+build/release/libbase64.so
 ```
 
 Run test:

@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <string.h>
+#include <unistd.h>
 
 const char *base64_error_message(int error_code) {
     switch (error_code) {
@@ -64,4 +65,21 @@ size_t base64_strip_whitespace(char buffer[], size_t size) {
     }
 
     return size - delete_count;
+}
+
+int base64_write_all(int fd, const void *buf, size_t count) {
+    while (count > 0) {
+        ssize_t written_count = write(fd, buf, count);
+        if (written_count < 0) {
+            int errnum = errno;
+            if (errnum == EINTR) {
+                continue;
+            }
+            BASE64_DEBUGF("write(): %s", strerror(errnum));
+            return BASE64_ERROR_IO;
+        }
+        count -= written_count;
+        buf += written_count;
+    }
+    return 0;
 }
