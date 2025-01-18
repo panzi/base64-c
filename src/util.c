@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 const char *base64_error_message(int error_code) {
     switch (error_code) {
@@ -26,7 +27,19 @@ const char *base64_error_message(int error_code) {
     }
 }
 
-#define IS_SPACE(C) (((C) >= '\t' && (C) <= '\r') || (C) == ' ')
+static const bool BASE64_SPACE_MAP[256] = {
+    [ 0 ... 255 ] = false,
+    [ '\t' ] = true,
+    [ '\n' ] = true,
+    [ '\t' ] = true,
+    [ '\v' ] = true,
+    [ '\f' ] = true,
+    [ '\r' ] = true,
+    [ ' '  ] = true,
+};
+
+//#define IS_SPACE(C) (((C) >= '\t' && (C) <= '\r') || (C) == ' ')
+#define IS_SPACE(C) (BASE64_SPACE_MAP[(uint8_t)(C)])
 
 size_t base64_strip_whitespace(char buffer[], size_t size) {
     size_t space_index = 0;
