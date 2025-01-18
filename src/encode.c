@@ -20,7 +20,7 @@ static const char *URLSAFE_BASE64_ENCODE_TABLE =
     "0123456789"
     "-_";
 
-static inline void base64_encode_quad(const uint8_t input[3], char output[4], const char *table) {
+static inline void base64_encode_unit(const uint8_t input[3], char output[4], const char *table) {
     uint8_t b1 = input[0];
     uint8_t b2 = input[1];
     uint8_t b3 = input[2];
@@ -77,7 +77,7 @@ ssize_t base64_encode_chunk(struct Base64Encoder *encoder, const uint8_t input[]
             return BASE64_ERROR_BUFFER_SIZE;
         }
 
-        base64_encode_quad(buf, output, table);
+        base64_encode_unit(buf, output, table);
         output_index += 4;
         input_index = read_count;
     }
@@ -103,10 +103,10 @@ ssize_t base64_encode_chunk(struct Base64Encoder *encoder, const uint8_t input[]
         const uint8_t *input_ptr = input + input_index;
         char *output_ptr = output + output_index;
 
-        base64_encode_quad(input_ptr,     output_ptr,      table);
-        base64_encode_quad(input_ptr + 3, output_ptr +  4, table);
-        base64_encode_quad(input_ptr + 6, output_ptr +  8, table);
-        base64_encode_quad(input_ptr + 9, output_ptr + 12, table);
+        base64_encode_unit(input_ptr,     output_ptr,      table);
+        base64_encode_unit(input_ptr + 3, output_ptr +  4, table);
+        base64_encode_unit(input_ptr + 6, output_ptr +  8, table);
+        base64_encode_unit(input_ptr + 9, output_ptr + 12, table);
 
         input_index  += 3 * 4;
         output_index += 4 * 4;
@@ -114,7 +114,7 @@ ssize_t base64_encode_chunk(struct Base64Encoder *encoder, const uint8_t input[]
 #endif
 
     for (; input_index < trunc_input_len; input_index += 3) {
-        base64_encode_quad(input + input_index, output + output_index, table);
+        base64_encode_unit(input + input_index, output + output_index, table);
         output_index += 4;
     }
 

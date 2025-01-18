@@ -71,7 +71,7 @@ static const uint8_t URLSAFE_BASE64_DECODE_TABLE[256] = {
     [ 'Z' ] = 25, [ 'z' ] = 51,
 };
 
-static inline int base64_decode_quad(const char input[4], uint8_t output[3], const uint8_t *table) {
+static inline int base64_decode_unit(const char input[4], uint8_t output[3], const uint8_t *table) {
     uint8_t c1 = input[0];
     uint8_t c2 = input[1];
     uint8_t c3 = input[2];
@@ -157,7 +157,7 @@ ssize_t base64_decode_chunk(struct Base64Decoder *decoder, const char *input, si
             return BASE64_ERROR_BUFFER_SIZE;
         }
 
-        int out_count = base64_decode_quad(buf, output, table);
+        int out_count = base64_decode_unit(buf, output, table);
         if (out_count < 0) {
             return out_count;
         }
@@ -183,28 +183,28 @@ ssize_t base64_decode_chunk(struct Base64Decoder *decoder, const char *input, si
     size_t unrolled_input_len = trunc_input_len - (trunc_input_len - input_index) % 16;
 
     while (input_index < unrolled_input_len) {
-        int out_count = base64_decode_quad(input + input_index, output + output_index, table);
+        int out_count = base64_decode_unit(input + input_index, output + output_index, table);
         if (out_count < 0) {
             return out_count;
         }
         output_index += (ssize_t)out_count;
         input_index += 4;
 
-        out_count = base64_decode_quad(input + input_index, output + output_index, table);
+        out_count = base64_decode_unit(input + input_index, output + output_index, table);
         if (out_count < 0) {
             return out_count;
         }
         output_index += (ssize_t)out_count;
         input_index += 4;
 
-        out_count = base64_decode_quad(input + input_index, output + output_index, table);
+        out_count = base64_decode_unit(input + input_index, output + output_index, table);
         if (out_count < 0) {
             return out_count;
         }
         output_index += (ssize_t)out_count;
         input_index += 4;
 
-        out_count = base64_decode_quad(input + input_index, output + output_index, table);
+        out_count = base64_decode_unit(input + input_index, output + output_index, table);
         if (out_count < 0) {
             return out_count;
         }
@@ -214,7 +214,7 @@ ssize_t base64_decode_chunk(struct Base64Decoder *decoder, const char *input, si
 #endif
 
     for (; input_index < trunc_input_len; input_index += 4) {
-        int out_count = base64_decode_quad(input + input_index, output + output_index, table);
+        int out_count = base64_decode_unit(input + input_index, output + output_index, table);
         if (out_count < 0) {
             return out_count;
         }
@@ -259,7 +259,7 @@ ssize_t base64_decode_finish(struct Base64Decoder *decoder, uint8_t output[], si
 
     const uint8_t *table = decoder->flags & BASE64_DIALECT_URLSAFE ?
         URLSAFE_BASE64_DECODE_TABLE : BASE64_DECODE_TABLE;
-    int out_count = base64_decode_quad(buf, output, table);
+    int out_count = base64_decode_unit(buf, output, table);
 
     if (out_count >= 0) {
         decoder->buf_size = 0;
