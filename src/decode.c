@@ -179,7 +179,7 @@ ssize_t base64_decode_chunk(struct Base64Decoder *decoder, const char *input, si
     }
 
 #ifndef BASE64_NO_UNROLL
-    // some manual loop unrolling
+    // some manual loop unrolling, no noticeable difference anyway
     size_t unrolled_input_len = trunc_input_len - (trunc_input_len - input_index) % 16;
 
     while (input_index < unrolled_input_len) {
