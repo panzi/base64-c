@@ -283,7 +283,7 @@ int base64_decode_stream(FILE *input, FILE *output, unsigned int flags) {
     uint8_t *outbuf = (uint8_t*)inbuf + inbuf_len;
 
     for (;;) {
-        size_t in_count = fread(inbuf, 1, sizeof(inbuf), input);
+        size_t in_count = fread(inbuf, 1, inbuf_len, input);
 
         if (in_count == 0) {
             if (ferror(input)) {
@@ -297,7 +297,7 @@ int base64_decode_stream(FILE *input, FILE *output, unsigned int flags) {
         if (allow_ws) {
             in_count = base64_strip_whitespace(inbuf, in_count);
         }
-        ssize_t out_count = base64_decode_chunk(&decoder, inbuf, in_count, outbuf, sizeof(outbuf));
+        ssize_t out_count = base64_decode_chunk(&decoder, inbuf, in_count, outbuf, outbuf_len);
 
         if (out_count < 0) {
             BASE64_DEBUGF("base64_decode(): %s", base64_error_message(out_count));
@@ -315,7 +315,7 @@ int base64_decode_stream(FILE *input, FILE *output, unsigned int flags) {
         }
     }
 
-    ssize_t out_count = base64_decode_finish(&decoder, outbuf, sizeof(outbuf));
+    ssize_t out_count = base64_decode_finish(&decoder, outbuf, outbuf_len);
 
     if (out_count < 0) {
         BASE64_DEBUGF("base64_decode_finish(): %s", base64_error_message(out_count));
@@ -353,7 +353,7 @@ int base64_decode_fd(int infd, int outfd, unsigned int flags) {
     uint8_t *outbuf = (uint8_t*)inbuf + inbuf_len;
 
     for (;;) {
-        ssize_t in_count = read(infd, inbuf, sizeof(inbuf));
+        ssize_t in_count = read(infd, inbuf, inbuf_len);
 
         if (in_count == 0) {
             break;
@@ -371,7 +371,7 @@ int base64_decode_fd(int infd, int outfd, unsigned int flags) {
             in_count = base64_strip_whitespace(inbuf, in_count);
         }
 
-        ssize_t out_count = base64_decode_chunk(&decoder, inbuf, in_count, outbuf, sizeof(outbuf));
+        ssize_t out_count = base64_decode_chunk(&decoder, inbuf, in_count, outbuf, outbuf_len);
 
         if (out_count < 0) {
             BASE64_DEBUGF("base64_decode(): %s", base64_error_message(out_count));
@@ -385,7 +385,7 @@ int base64_decode_fd(int infd, int outfd, unsigned int flags) {
         }
     }
 
-    ssize_t out_count = base64_decode_finish(&decoder, outbuf, sizeof(outbuf));
+    ssize_t out_count = base64_decode_finish(&decoder, outbuf, outbuf_len);
 
     if (out_count < 0) {
         BASE64_DEBUGF("base64_decode_finish(): %s", base64_error_message(out_count));
