@@ -12,6 +12,9 @@ const char *base64_error_message(int error_code) {
         case BASE64_ERROR_BUFFER_SIZE:
             return "output buffer too small";
 
+        case BASE64_ERROR_MEMORY:
+            return "out of memory";
+
         case BASE64_ERROR_IO:
         {
             int errnum = errno;
