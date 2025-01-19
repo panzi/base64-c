@@ -44,9 +44,9 @@ BASE64_EXPORT const char *base64_error_message(int error_code);
 BASE64_EXPORT size_t base64_strip_whitespace(char buffer[], size_t size);
 
 // Flags
-#define BASE64_ALLOW_TRUNCATE   1
-#define BASE64_ALLOW_WHITESPACE 2
-#define BASE64_DIALECT_URLSAFE  4
+#define BASE64_ALLOW_TRUNCATE   1 // Allow missing padding for decode and don't emit padding for encode.
+#define BASE64_ALLOW_WHITESPACE 2 // Only for `base64_decode_stream()` and `base64_decode_fd()`.
+#define BASE64_DIALECT_URLSAFE  4 // Use `-` and `_` instead of `+` and `/`.
 
 struct Base64Decoder {
     char buf[4];
